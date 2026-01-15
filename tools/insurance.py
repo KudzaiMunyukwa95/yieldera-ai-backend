@@ -163,8 +163,8 @@ def _get_field_quote(field_id, expected_yield, price_per_ton, year, deductible_r
             quote = data.get("quote", {})
             quote_id = quote.get("quote_id")
             
-            # Generate dashboard URL for PDF download
-            dashboard_url = f"https://yieldera.net/dashboard/pricing.html?quote_id={quote_id}" if quote_id else None
+            # Generate DIRECT PDF download URL (backend endpoint)
+            pdf_url = f"https://yieldera-index.onrender.com/api/quotes/{quote_id}/pdf" if quote_id else None
             
             field_data = data.get("field_data", {})
             
@@ -179,7 +179,7 @@ def _get_field_quote(field_id, expected_yield, price_per_ton, year, deductible_r
                 "deductible": f"{deductible_rate * 100}%",
                 "ai_summary": quote.get("ai_summary", "Summary not available"),
                 "quote_id": quote_id,
-                "pdf_download_url": dashboard_url,
+                "pdf_download_url": pdf_url,
                 "execution_time": data.get("execution_time_seconds"),
                 "raw_quote": quote  # Full quote data for advanced display
             }
@@ -224,8 +224,8 @@ def _get_coordinate_quote(lat, lon, expected_yield, price_per_ton, year, crop, d
             quote = data.get("quote", {})
             quote_id = quote.get("quote_id")
             
-            # Generate dashboard URL for PDF download
-            dashboard_url = f"https://yieldera.net/dashboard/pricing.html?quote_id={quote_id}" if quote_id else None
+            # Generate DIRECT PDF download URL (backend endpoint)
+            pdf_url = f"https://yieldera-index.onrender.com/api/quotes/{quote_id}/pdf" if quote_id else None
             
             return {
                 "status": "success",
@@ -237,7 +237,7 @@ def _get_coordinate_quote(lat, lon, expected_yield, price_per_ton, year, crop, d
                 "deductible": f"{deductible_rate * 100}%",
                 "ai_summary": quote.get("ai_summary", "Summary not available"),
                 "quote_id": quote_id,
-                "pdf_download_url": dashboard_url,
+                "pdf_download_url": pdf_url,
                 "execution_time": data.get("execution_time_seconds"),
                 "raw_quote": quote
             }
