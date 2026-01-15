@@ -59,13 +59,14 @@ TOOLS_SCHEMA = [
     }
 ]
 
-async def process_user_query(message: str, context: dict, plan: object):
+async def process_user_query(message: str, context: dict, plan: object, history: list = []):
     """
-    Main Agent Loop:
-    1. System Prompt (Constraint)
-    2. User Query
-    3. Function Execution Loop
-    4. Final Answer
+    Main Agent Loop (Multi-Step):
+    1. System Prompt
+    2. Append History (Context)
+    3. User Query
+    4. Reasoning Loop (While Needs Tools -> Execute -> Feed Back -> Repeat)
+    5. Final Answer
     """
     
     system_prompt = f"""
@@ -75,42 +76,51 @@ async def process_user_query(message: str, context: dict, plan: object):
     PLAN: {json.dumps(plan.model_dump())}
     
     ### DATA INSTRUCTIONS
-    1. **USE THE DB:** The `get_fields` tool returns `risk_score`, `risk_reason` (summary), and `growth_stage`. USE THEM.
-    2. **DO NOT GUESS:** If the tool says `risk_score` is 0, the field is SAFE. Do not invent "potential risks" unless asked for general knowledge.
-    3. **BE SPECIFIC:** Refer to fields by Name and ID (e.g., "Field Alpha (ID: 102)").
+    1. **USE THE DB:** The `get_fields` tool returns `risk_score`, `risk_reason`, and `growth_stage`. USE THEM.
+    2. **DO NOT GUESS:** If asking about a specific field (e.g. "Field Alpha"), you MUST first call `get_fields` to find its ID, then use that ID for other tools (like `get_vegetation_health`).
+    3. **VEGETATION CHECKS:** To check vegetation/NDVI, you need a Field ID and a Date. Find the ID first.
     
     ### STYLE GUIDELINES
-    1. **Human & Professional:** Speak like a colleague, not a robot. Avoid phrases like "Based on the provided data" or "I have processed your request."
-    2. **Direct:** Start with the answer. "You have 3 high-risk fields."
-    3. **Confidence:** If the database says it's high risk, say it's high risk.
-    
-    ### CRITICAL RULES
-    - If `risk_score` > 0, that field is your PRIORITY. highlight it.
-    - If `growth_stage` is 'Late-season', mention harvest planning.
+    1. **Human & Professional:** Speak like a colleague. Be direct.
+    2. **Confidence:** If data is missing, say so. If data exists, quote it.
     """
     
-    messages = [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": message}
-    ]
+    messages = [{"role": "system", "content": system_prompt}]
+    
+    # Append History (limited to last 10 messages to save context window)
+    for msg in history[-10:]:
+        messages.append({"role": msg.get("role"), "content": msg.get("content")})
+        
+    messages.append({"role": "user", "content": message})
     
     # Audit Start
     AuditLog.log_event(context.get('user_id'), "START_TURN", {"query": message})
     
-    # 1. First Call (Reasoning)
-    response = await client.chat.completions.create(
-        model=settings.OPENAI_MODEL,
-        messages=messages,
-        tools=TOOLS_SCHEMA,
-        tool_choice="auto"
-    )
+    # Multi-Step Tool Loop
+    MAX_STEPS = 5
+    step = 0
     
-    response_msg = response.choices[0].message
-    tool_calls = response_msg.tool_calls
-    
-    # 2. Tool Execution Loop
-    if tool_calls:
-        messages.append(response_msg) # Extend conversation with assistant's thought
+    while step < MAX_STEPS:
+        step += 1
+        
+        # 1. Ask Model
+        response = await client.chat.completions.create(
+            model=settings.OPENAI_MODEL,
+            messages=messages,
+            tools=TOOLS_SCHEMA,
+            tool_choice="auto"
+        )
+        
+        response_msg = response.choices[0].message
+        tool_calls = response_msg.tool_calls
+        
+        # 2. If no tools, we are done
+        if not tool_calls:
+            AuditLog.log_decision(context.get('user_id'), message, response_msg.content, [])
+            return response_msg.content
+            
+        # 3. Execute Tools
+        messages.append(response_msg) # Add AI thought to context
         
         for tool_call in tool_calls:
             function_name = tool_call.function.name
@@ -118,13 +128,15 @@ async def process_user_query(message: str, context: dict, plan: object):
             
             tool_result = None
             
-            if function_name == "get_fields":
-                tool_result = get_fields_via_bridge(context)
-            elif function_name == "get_weather":
-                tool_result = get_weather_forecast(args['lat'], args['lon'])
-            elif function_name == "get_vegetation_health":
-                # Ensure context is passed for field lookup security
-                tool_result = get_vegetation_health(context, args['field_id'], args['date'])
+            try:
+                if function_name == "get_fields":
+                    tool_result = get_fields_via_bridge(context)
+                elif function_name == "get_weather":
+                    tool_result = get_weather_forecast(args['lat'], args['lon'])
+                elif function_name == "get_vegetation_health":
+                    tool_result = get_vegetation_health(context, args['field_id'], args['date'])
+            except Exception as e:
+                tool_result = {"error": str(e)}
                 
             # Feed result back
             messages.append({
@@ -134,18 +146,8 @@ async def process_user_query(message: str, context: dict, plan: object):
                 "content": json.dumps(tool_result)
             })
             
-            AuditLog.log_event(context.get('user_id'), "TOOL_RESULT", {"tool": function_name})
+            AuditLog.log_event(context.get('user_id'), "TOOL_EXECUTION", {"tool": function_name})
+            
+    # Fallback if max steps reached
+    return "I needed to perform too many steps to answer this. Please try narrowing down your request."
 
-        # 3. Final Answer after tools
-        final_response = await client.chat.completions.create(
-            model=settings.OPENAI_MODEL,
-            messages=messages
-        )
-        answer = final_response.choices[0].message.content
-        
-    else:
-        # No tools needed
-        answer = response_msg.content
-
-    AuditLog.log_decision(context.get('user_id'), message, answer, [t.function.name for t in (tool_calls or [])])
-    return answer
