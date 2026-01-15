@@ -34,7 +34,6 @@ def health_check():
 
 # ... imports ..
 
-.
 from schemas.request import ChatRequest
 from core.planning import create_plan
 from core.agent import process_user_query
