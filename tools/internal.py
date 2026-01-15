@@ -10,13 +10,9 @@ def get_fields_via_bridge(user_context: dict) -> list:
     Simulates the specific user's session securey.
     """
     url = settings.PHP_BRIDGE_URL
-    headers = {
-        "X-AI-API-KEY": settings.INTERNAL_API_KEY,
-        "Content-Type": "application/json"
-    }
-    
     payload = {
         "action": "get_fields",
+        "auth_key": settings.INTERNAL_API_KEY,  # Moved to Body for reliability
         "user_id": user_context.get("user_id"),
         "role": user_context.get("role"),
         "entity_id": user_context.get("entity_id")
