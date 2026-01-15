@@ -7,9 +7,10 @@ settings = get_settings()
 def get_fields_via_bridge(user_context: dict) -> list:
     """
     Fetches the user's fields by calling the PHP Logic via the Bridge.
-    Simulates the specific user's session securey.
     """
     url = settings.PHP_BRIDGE_URL
+    headers = {"Content-Type": "application/json"}
+    
     payload = {
         "action": "get_fields",
         "auth_key": settings.INTERNAL_API_KEY,  # Moved to Body for reliability
