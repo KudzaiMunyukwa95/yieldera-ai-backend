@@ -156,18 +156,25 @@ def _get_field_quote(field_id, expected_yield, price_per_ton, year, deductible_r
         
         if data.get("status") == "success":
             quote = data.get("quote", {})
+            quote_id = quote.get("quote_id")
+            
+            # Generate dashboard URL for PDF download
+            dashboard_url = f"https://yieldera.net/dashboard/pricing.html?quote_id={quote_id}" if quote_id else None
+            
             field_data = data.get("field_data", {})
             
             return {
                 "status": "success",
                 "quote_type": "field",
+                "field_id": field_id,
                 "field_name": field_data.get("name", f"Field {field_id}"),
                 "sum_insured": f"${quote.get('sum_insured', 0):,.2f}",
                 "gross_premium": f"${quote.get('gross_premium', 0):,.2f}",
                 "premium_rate": f"{quote.get('premium_rate', 0) * 100:.2f}%",
                 "deductible": f"{deductible_rate * 100}%",
                 "ai_summary": quote.get("ai_summary", "Summary not available"),
-                "quote_id": quote.get("quote_id"),
+                "quote_id": quote_id,
+                "pdf_download_url": dashboard_url,
                 "execution_time": data.get("execution_time_seconds"),
                 "raw_quote": quote  # Full quote data for advanced display
             }
@@ -210,6 +217,10 @@ def _get_coordinate_quote(lat, lon, expected_yield, price_per_ton, year, crop, d
         
         if data.get("status") == "success":
             quote = data.get("quote", {})
+            quote_id = quote.get("quote_id")
+            
+            # Generate dashboard URL for PDF download
+            dashboard_url = f"https://yieldera.net/dashboard/pricing.html?quote_id={quote_id}" if quote_id else None
             
             return {
                 "status": "success",
@@ -220,7 +231,8 @@ def _get_coordinate_quote(lat, lon, expected_yield, price_per_ton, year, crop, d
                 "premium_rate": f"{quote.get('premium_rate', 0) * 100:.2f}%",
                 "deductible": f"{deductible_rate * 100}%",
                 "ai_summary": quote.get("ai_summary", "Summary not available"),
-                "quote_id": quote.get("quote_id"),
+                "quote_id": quote_id,
+                "pdf_download_url": dashboard_url,
                 "execution_time": data.get("execution_time_seconds"),
                 "raw_quote": quote
             }
