@@ -2,6 +2,7 @@ from openai import AsyncOpenAI
 from core.config import get_settings
 from core.audit import AuditLog
 from tools.weather import get_weather_forecast
+from tools.historical_weather import get_historical_weather
 from tools.internal import get_fields_via_bridge
 from tools.vegetation import get_vegetation_health
 from tools.alerts import get_alerts_from_system, create_alert_in_system
@@ -60,6 +61,23 @@ TOOLS_SCHEMA = [
     {
         "type": "function",
         "function": {
+            "name": "get_historical_weather",
+            "description": "Get HISTORICAL weather data (past temperatures) using dual consensus module (OpenMeteo + NASA POWER). Use this for questions about past weather like 'lowest temp in June 2025'.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "lat": {"type": "number", "description": "Latitude"},
+                    "lon": {"type": "number", "description": "Longitude"},
+                    "start_date": {"type": "string", "description": "Start date YYYY-MM-DD"},
+                    "end_date": {"type": "string", "description": "End date YYYY-MM-DD"}
+                },
+                "required": ["lat", "lon", "start_date", "end_date"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "get_alerts",
             "description": "Get active alerts from the REAL alerts system (NOT portfolio data). Use this when user asks about alerts, warnings, notifications, or configured monitoring rules.",
             "parameters": {
@@ -106,14 +124,24 @@ async def process_user_query(message: str, context: dict, plan: object, history:
     
     PLAN: {json.dumps(plan.model_dump())}
     
+    ### CRITICAL: NEVER MAKE UP DATA
+    1. **ONLY USE TOOL DATA:** You can ONLY provide information that comes from your tools.
+    2. **NO GUESSING:** If you don't have access to specific data (historical weather, past NDVI, etc.), say "I don't have access to that data" - DO NOT invent numbers.
+    3. **WEATHER TOOLS:** You have TWO weather tools:
+       - `get_weather`: 7-day FORECASTS only (future)
+       - `get_historical_weather`: HISTORICAL data (past temps via dual consensus: OpenMeteo + NASA POWER)
+    4. **VEGETATION LIMITATIONS:** You can only check NDVI for specific past dates if the user provides a date. You cannot make up NDVI values.
+    
     ### DATA INSTRUCTIONS
     1. **USE THE DB:** The `get_fields` tool returns `risk_score`, `risk_reason`, and `growth_stage`. USE THEM.
     2. **DO NOT GUESS:** If asking about a specific field (e.g. "Field Alpha"), you MUST first call `get_fields` to find its ID, then use that ID for other tools (like `get_vegetation_health`).
     3. **VEGETATION CHECKS:** To check vegetation/NDVI, you need a Field ID and a Date. Find the ID first.
+    4. **ALERTS:** Use `get_alerts` for alert queries, NOT portfolio data.
     
     ### STYLE GUIDELINES
     1. **Human & Professional:** Speak like a colleague. Be direct.
     2. **Confidence:** If data is missing, say so. If data exists, quote it.
+    3. **Honesty:** "I don't have access to that data" is better than making up numbers.
     """
     
     messages = [{"role": "system", "content": system_prompt}]
@@ -166,6 +194,13 @@ async def process_user_query(message: str, context: dict, plan: object, history:
                     tool_result = get_weather_forecast(args['lat'], args['lon'])
                 elif function_name == "get_vegetation_health":
                     tool_result = get_vegetation_health(context, args['field_id'], args['date'])
+                elif function_name == "get_historical_weather":
+                    tool_result = get_historical_weather(
+                        args.get("lat"),
+                        args.get("lon"),
+                        args.get("start_date"),
+                        args.get("end_date")
+                    )
                 elif function_name == "get_alerts":
                     tool_result = get_alerts_from_system(context, args.get('status', 'active'))
                 elif function_name == "create_alert":
