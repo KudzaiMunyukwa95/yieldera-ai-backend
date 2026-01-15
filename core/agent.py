@@ -127,9 +127,11 @@ async def process_user_query(message: str, context: dict, plan: object, history:
     ### CRITICAL: NEVER MAKE UP DATA
     1. **ONLY USE TOOL DATA:** You can ONLY provide information that comes from your tools.
     2. **NO GUESSING:** If you don't have access to specific data (historical weather, past NDVI, etc.), say "I don't have access to that data" - DO NOT invent numbers.
-    3. **WEATHER TOOLS:** You have TWO weather tools:
-       - `get_weather`: 7-day FORECASTS only (future)
-       - `get_historical_weather`: HISTORICAL data (past temps via dual consensus: OpenMeteo + NASA POWER)
+    3. **WEATHER TOOLS - DATE AWARENESS (CRITICAL):**
+       - **Current date context**: It is January 2026
+       - If user asks about dates BEFORE January 2026 (e.g., "July 2025", "June 2025") → Use `get_historical_weather` (PAST data)
+       - If user asks about dates AFTER January 2026 (e.g., "next week", "February 2026") → Use `get_weather` (7-day FORECAST)
+       - **NEVER say "forecasted" for past dates** - past data is historical, not forecasted
     4. **VEGETATION LIMITATIONS:** You can only check NDVI for specific past dates if the user provides a date. You cannot make up NDVI values.
     
     ### CONTEXT AWARENESS (CRITICAL)
