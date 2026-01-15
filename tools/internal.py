@@ -37,6 +37,10 @@ def get_fields_via_bridge(user_context: dict) -> list:
                 "name": props.get("name"),
                 "crop": props.get("crop"),
                 "area_ha": props.get("area_ha"),
+                "risk_score": props.get("risk_score"),
+                "risk_status": props.get("regional_status"),
+                "risk_reason": props.get("regional_summary"),
+                "growth_stage": props.get("growth_stage"),
                 "location": f.get("geometry", {}).get("coordinates") # [lon, lat]
             })
             
