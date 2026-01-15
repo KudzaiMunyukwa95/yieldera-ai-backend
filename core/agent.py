@@ -2,9 +2,9 @@ from openai import AsyncOpenAI
 from core.config import get_settings
 from core.audit import AuditLog
 from tools.weather import get_weather_forecast
-from tools.weather import get_weather_forecast
 from tools.internal import get_fields_via_bridge
 from tools.vegetation import get_vegetation_health
+from tools.alerts import get_alerts_from_system, create_alert_in_system
 import json
 
 settings = get_settings()
@@ -54,6 +54,37 @@ TOOLS_SCHEMA = [
                     }
                 },
                 "required": ["field_id", "date"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_alerts",
+            "description": "Get active alerts from the REAL alerts system (NOT portfolio data). Use this when user asks about alerts, warnings, notifications, or configured monitoring rules.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "status": {"type": "string", "enum": ["active", "all"], "default": "active"}
+                }
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "create_alert",
+            "description": "Create a new weather/field alert with email notifications. Parse natural language like 'alert me when temp > 40 for field X' into structured parameters.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "field_name": {"type": "string", "description": "Name of the field (e.g., 'Combined', 'Field Alpha')"},
+                    "alert_type": {"type": "string", "enum": ["temperature", "windspeed", "rainfall", "ndvi"], "description": "Type of alert"},
+                    "threshold": {"type": "number", "description": "Threshold value (e.g., 40 for temperature)"},
+                    "operator": {"type": "string", "enum": [">", "<", ">=", "<=", "="], "description": "Comparison operator"},
+                    "email": {"type": "string", "description": "Email address for notifications"}
+                },
+                "required": ["field_name", "alert_type", "threshold", "operator", "email"]
             }
         }
     }
@@ -135,6 +166,19 @@ async def process_user_query(message: str, context: dict, plan: object, history:
                     tool_result = get_weather_forecast(args['lat'], args['lon'])
                 elif function_name == "get_vegetation_health":
                     tool_result = get_vegetation_health(context, args['field_id'], args['date'])
+                elif function_name == "get_alerts":
+                    tool_result = get_alerts_from_system(context, args.get('status', 'active'))
+                elif function_name == "create_alert":
+                    tool_result = create_alert_in_system(
+                        context,
+                        args.get("field_name"),
+                        args.get("alert_type"),
+                        args.get("threshold"),
+                        args.get("operator"),
+                        args.get("email")
+                    )
+                else:
+                    tool_result = {"error": f"Unknown tool: {function_name}"}
             except Exception as e:
                 tool_result = {"error": str(e)}
                 
