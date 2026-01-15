@@ -58,7 +58,8 @@ async def chat_endpoint(request_data: ChatRequest):
     
     # 3. Execute (Agent)
     try:
-        answer = await process_user_query(request_data.message, context_dict, plan)
+        # Pass history to maintain context
+        answer = await process_user_query(request_data.message, context_dict, plan, request_data.history)
     except Exception as e:
         # Fallback if OpenAI fails
         print(f"Agent Error: {e}")
