@@ -3,7 +3,7 @@ from core.config import get_settings
 
 settings = get_settings()
 
-ALERTS_API_URL = "https://yieldera-alerts-main.onrender.com/api"
+ALERTS_API_URL = "https://yieldera-alerts.onrender.com/api"  # Fixed: was yieldera-alerts-main
 ADMIN_TOKEN = settings.ADMIN_TOKEN  # From environment variable
 
 def get_alerts_from_system(user_context: dict, status: str = "active") -> list:
