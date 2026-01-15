@@ -6,6 +6,7 @@ from tools.historical_weather import get_historical_weather
 from tools.internal import get_fields_via_bridge
 from tools.vegetation import get_vegetation_health
 from tools.alerts import get_alerts_from_system, create_alert_in_system
+from tools.insurance import get_insurance_quote
 import json
 
 settings = get_settings()
@@ -104,6 +105,30 @@ TOOLS_SCHEMA = [
                     "email": {"type": "string", "description": "Email address for notifications"}
                 },
                 "required": ["field_name", "alert_type", "threshold", "operator", "email"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_insurance_quote",
+            "description": "Generate crop insurance quotes. Supports 3 methods: field-based ('quote field P60'), coordinates ('quote lat -17.82, lon 30.99'), or region ('quote Mazowe'). Returns premium, sum insured, and AI risk analysis.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "quote_type": {"type": "string", "enum": ["field", "coordinates", "region"], "description": "Quote method"},
+                    "field_id": {"type": "integer", "description": "Field ID (required if quote_type='field')"},
+                    "latitude": {"type": "number", "description": "Latitude (required if quote_type='coordinates')"},
+                    "longitude": {"type": "number", "description": "Longitude (required if quote_type='coordinates')"},
+                    "region_name": {"type": "string", "description": "Region name like 'Mazowe' (required if quote_type='region')"},
+                    "expected_yield": {"type": "number", "description": "Expected yield tons/ha (default: 5.0)"},
+                    "price_per_ton": {"type": "number", "description": "Price per ton in $ (default: 300)"},
+                    "year": {"type": "integer", "description": "Quote year (optional, defaults to next season)"},
+                    "crop": {"type": "string", "description": "Crop type (default: 'maize')"},
+                    "deductible_rate": {"type": "number", "description": "Deductible as decimal (default: 0.05 = 5%)"},
+                    "area_ha": {"type": "number", "description": "Area in hectares (optional)"}
+                },
+                "required": ["quote_type"]
             }
         }
     }
@@ -223,6 +248,21 @@ async def process_user_query(message: str, context: dict, plan: object, history:
                         args.get("threshold"),
                         args.get("operator"),
                         args.get("email")
+                    )
+                elif function_name == "get_insurance_quote":
+                    tool_result = get_insurance_quote(
+                        context,
+                        quote_type=args.get("quote_type"),
+                        field_id=args.get("field_id"),
+                        latitude=args.get("latitude"),
+                        longitude=args.get("longitude"),
+                        region_name=args.get("region_name"),
+                        expected_yield=args.get("expected_yield", 5.0),
+                        price_per_ton=args.get("price_per_ton", 300.0),
+                        year=args.get("year"),
+                        crop=args.get("crop", "maize"),
+                        deductible_rate=args.get("deductible_rate", 0.05),
+                        area_ha=args.get("area_ha")
                     )
                 else:
                     tool_result = {"error": f"Unknown tool: {function_name}"}
