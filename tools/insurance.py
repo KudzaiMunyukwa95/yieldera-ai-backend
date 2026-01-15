@@ -68,13 +68,11 @@ def get_insurance_quote(
             )
         
         elif quote_type == "region":
-            if region_name is None:
-                return {"error": "region_name is required for region-based quotes"}
-            
-            return _get_region_quote(
-                region_name, expected_yield, price_per_ton, 
-                year, crop, deductible_rate, area_ha
-            )
+            # Region quotes require shapefile geometry, not just a name
+            # This needs additional implementation to look up region shapes
+            return {
+                "error": "Region-based quotes require shapefile integration. Please use field ID or coordinates for now, or contact support for region quoting."
+            }
         
         else:
             return {"error": f"Invalid quote_type: {quote_type}. Use 'field', 'coordinates', or 'region'"}
