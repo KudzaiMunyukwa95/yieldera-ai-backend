@@ -2,7 +2,9 @@ from openai import AsyncOpenAI
 from core.config import get_settings
 from core.audit import AuditLog
 from tools.weather import get_weather_forecast
+from tools.weather import get_weather_forecast
 from tools.internal import get_fields_via_bridge
+from tools.vegetation import get_vegetation_health
 import json
 
 settings = get_settings()
@@ -31,6 +33,27 @@ TOOLS_SCHEMA = [
                     "days": {"type": "integer", "default": 7}
                 },
                 "required": ["lat", "lon"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_vegetation_health",
+            "description": "Get historical vegetation health (NDVI) for a specific field and date.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "field_id": {
+                        "type": "integer",
+                        "description": "The ID of the field to analyze."
+                    },
+                    "date": {
+                        "type": "string",
+                        "description": "The target date in YYYY-MM-DD format."
+                    }
+                },
+                "required": ["field_id", "date"]
             }
         }
     }
@@ -99,6 +122,9 @@ async def process_user_query(message: str, context: dict, plan: object):
                 tool_result = get_fields_via_bridge(context)
             elif function_name == "get_weather":
                 tool_result = get_weather_forecast(args['lat'], args['lon'])
+            elif function_name == "get_vegetation_health":
+                # Ensure context is passed for field lookup security
+                tool_result = get_vegetation_health(context, args['field_id'], args['date'])
                 
             # Feed result back
             messages.append({
