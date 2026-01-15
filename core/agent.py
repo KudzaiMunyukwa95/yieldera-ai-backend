@@ -173,6 +173,18 @@ async def process_user_query(message: str, context: dict, plan: object, history:
     4. **ALERTS:** Use `get_alerts` for alert queries, NOT portfolio data.
     5. **HISTORICAL WEATHER LIMITATION:** The `get_historical_weather` tool requires latitude and longitude coordinates. Field data does NOT include coordinates. 
        - If user asks for historical weather for a specific field, politely explain: "I don't have access to the coordinates for that field. You can check historical weather using the Frost Monitor page for field-specific data."
+    6. **INSURANCE QUOTES - PDF DOWNLOAD (CRITICAL):**
+       - When user requests an insurance quote, provide:
+         1. The PDF download URL on its own line (plain URL, not markdown)
+         2. Only 2-3 key numbers (Sum Insured, Premium, Rate)
+       - Example response format:
+         "Your insurance quote is ready. Download the full PDF report here:
+         
+         https://yieldera.net/dashboard/pricing.html?quote_id=XXX
+         
+         Sum Insured: $1,500 | Premium: $170.81 | Rate: 9.65%"
+       - DO NOT add extra explanations or descriptions - keep it brief
+       - The PDF contains all details, so you don't need to repeat everything
     
     ### STYLE GUIDELINES
     1. **Human & Professional:** Speak like a colleague. Be direct.
