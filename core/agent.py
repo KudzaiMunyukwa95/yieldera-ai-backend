@@ -62,16 +62,17 @@ TOOLS_SCHEMA = [
         "type": "function",
         "function": {
             "name": "get_historical_weather",
-            "description": "Get HISTORICAL weather data (past temperatures) using dual consensus module (OpenMeteo + NASA POWER). Use this for questions about past weather like 'lowest temp in June 2025'.",
+            "description": "Get HISTORICAL weather data (past temperatures) using dual consensus module (OpenMeteo + NASA POWER). IMPORTANT: Use field_id when asking about a specific field - this ensures accurate coordinates.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "lat": {"type": "number", "description": "Latitude"},
-                    "lon": {"type": "number", "description": "Longitude"},
+                    "field_id": {"type": "integer", "description": "Field ID (PREFERRED - use this when user asks about a field)"},
+                    "lat": {"type": "number", "description": "Latitude (optional if field_id provided)"},
+                    "lon": {"type": "number", "description": "Longitude (optional if field_id provided)"},
                     "start_date": {"type": "string", "description": "Start date YYYY-MM-DD"},
                     "end_date": {"type": "string", "description": "End date YYYY-MM-DD"}
                 },
-                "required": ["lat", "lon", "start_date", "end_date"]
+                "required": ["start_date", "end_date"]
             }
         }
     },
@@ -204,10 +205,11 @@ async def process_user_query(message: str, context: dict, plan: object, history:
                     tool_result = get_vegetation_health(context, args['field_id'], args['date'])
                 elif function_name == "get_historical_weather":
                     tool_result = get_historical_weather(
-                        args.get("lat"),
-                        args.get("lon"),
-                        args.get("start_date"),
-                        args.get("end_date")
+                        field_id=args.get("field_id"),
+                        lat=args.get("lat"),
+                        lon=args.get("lon"),
+                        start_date=args.get("start_date"),
+                        end_date=args.get("end_date")
                     )
                 elif function_name == "get_alerts":
                     tool_result = get_alerts_from_system(context, args.get('status', 'active'))
