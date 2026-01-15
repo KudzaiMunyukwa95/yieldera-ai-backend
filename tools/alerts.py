@@ -4,7 +4,8 @@ from core.config import get_settings
 settings = get_settings()
 
 ALERTS_API_URL = "https://yieldera-alerts-main.onrender.com/api"
-ADMIN_TOKEN = settings.INTERNAL_API_KEY  # Reuse existing internal API key
+# TODO: Move this to environment variable after testing
+ADMIN_TOKEN = "alerts_admin_2024"  # Temporary - should match yieldera-alerts-main ADMIN_TOKEN
 
 def get_alerts_from_system(user_context: dict, status: str = "active") -> list:
     """
