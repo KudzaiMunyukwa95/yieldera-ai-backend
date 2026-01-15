@@ -190,9 +190,6 @@ def _get_coordinate_quote(lat, lon, expected_yield, price_per_ton, year, crop, d
 def _get_region_quote(region_name, expected_yield, price_per_ton, year, crop, deductible_rate, area_ha):
     """Generate quote for a named region (uses shapefile)"""
     try:
-        # For region quotes, we need to get the shapefile geometry
-        # This might require a separate lookup or be handled by the index backend
-        
         payload = {
             "region": region_name,
             "expected_yield": expected_yield,
@@ -207,9 +204,9 @@ def _get_region_quote(region_name, expected_yield, price_per_ton, year, crop, de
         
         print(f"🗺️ Requesting quote for region: {region_name}")
         
-        # Use historical endpoint with region parameter
+        # Use PROSPECTIVE endpoint (historical is for past years only)
         response = requests.post(
-            f"{INDEX_API_URL}/quotes/historical",
+            f"{INDEX_API_URL}/quotes/prospective",
             json=payload,
             timeout=30
         )
