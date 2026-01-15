@@ -37,6 +37,9 @@ def get_historical_weather(lat: float, lon: float, start_date: str, end_date: st
         
         data = response.json()
         
+        print(f"🔍 DEBUG: Full API response status: {data.get('status')}")
+        print(f"🔍 DEBUG: First 3 daily records: {data.get('results', {}).get('daily', [])[:3]}")
+        
         if data.get("status") != "success":
             return {"error": "Failed to retrieve historical weather data"}
         
@@ -52,6 +55,12 @@ def get_historical_weather(lat: float, lon: float, start_date: str, end_date: st
                 "temp_min_celsius": temp_min,
                 "source": record.get("source", "dual_consensus")
             })
+        
+        # Log min/max to check for sanity
+        if simplified:
+            temps = [r["temp_min_celsius"] for r in simplified if r["temp_min_celsius"] is not None]
+            if temps:
+                print(f"🌡️ DEBUG: Temperature range: {min(temps)}°C to {max(temps)}°C")
         
         print(f"✅ Retrieved {len(simplified)} days of historical weather")
         
