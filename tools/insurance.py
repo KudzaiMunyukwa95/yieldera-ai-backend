@@ -163,8 +163,8 @@ def _get_field_quote(field_id, expected_yield, price_per_ton, year, deductible_r
             quote = data.get("quote", {})
             quote_id = quote.get("quote_id")
             
-            # Generate DIRECT PDF download URL (backend endpoint)
-            pdf_url = f"https://yieldera-index.onrender.com/api/quotes/{quote_id}/pdf" if quote_id else None
+            # Use frontend proxy endpoint (hides backend URL from users)
+            pdf_url = f"https://yieldera.net/api/quote-pdf.php?id={quote_id}" if quote_id else None
             
             field_data = data.get("field_data", {})
             
@@ -224,8 +224,8 @@ def _get_coordinate_quote(lat, lon, expected_yield, price_per_ton, year, crop, d
             quote = data.get("quote", {})
             quote_id = quote.get("quote_id")
             
-            # Generate DIRECT PDF download URL (backend endpoint)
-            pdf_url = f"https://yieldera-index.onrender.com/api/quotes/{quote_id}/pdf" if quote_id else None
+            # Use frontend proxy endpoint
+            pdf_url = f"https://yieldera.net/api/quote-pdf.php?id={quote_id}" if quote_id else None
             
             return {
                 "status": "success",
