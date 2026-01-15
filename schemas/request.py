@@ -10,6 +10,7 @@ class UserContext(BaseModel):
 class ChatRequest(BaseModel):
     message: str = Field(..., min_length=2, max_length=1000)
     context: UserContext
+    history: List[Dict[str, str]] = [] # [{"role": "user", "content": "hi"}, ...]
     conversation_id: Optional[str] = None
     
     class Config:
