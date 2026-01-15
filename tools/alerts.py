@@ -86,6 +86,7 @@ def create_alert_in_system(
         fields = get_fields_via_bridge(user_context)
         
         if isinstance(fields, dict) and "error" in fields:
+            print(f"❌ Could not fetch fields: {fields}")
             return {"error": "Could not look up fields"}
         
         # Find matching field
@@ -96,9 +97,11 @@ def create_alert_in_system(
                 break
         
         if not matching_field:
+            print(f"❌ Field '{field_name}' not found. Available fields: {[f.get('name') for f in fields[:5]]}")
             return {"error": f"Field '{field_name}' not found in your portfolio"}
         
         field_id = matching_field["id"]
+        print(f"✅ Found field '{field_name}' with ID: {field_id}")
         
         # Map operator to condition_type
         condition_map = {
@@ -126,15 +129,25 @@ def create_alert_in_system(
             "active": 1
         }
         
+        print(f"📤 Sending alert creation request to {ALERTS_API_URL}/alerts")
+        print(f"   Payload: {payload}")
+        print(f"   Token (first 10 chars): {ADMIN_TOKEN[:10]}...")
+        
         response = requests.post(
             f"{ALERTS_API_URL}/alerts",
             json=payload,
             headers=headers,
             timeout=10
         )
+        
+        print(f"📥 API Response: Status {response.status_code}")
+        print(f"   Body: {response.text}")
+        
         response.raise_for_status()
         
         result = response.json()
+        
+        print(f"✅ Alert created successfully! ID: {result.get('id')}")
         
         return {
             "success": True,
@@ -143,6 +156,17 @@ def create_alert_in_system(
         }
     
     except requests.exceptions.HTTPError as e:
-        return {"error": f"API error: {e.response.status_code} - {e.response.text}"}
+        error_msg = f"API error {e.response.status_code}"
+        try:
+            error_detail = e.response.json()
+            error_msg += f": {error_detail}"
+        except:
+            error_msg += f": {e.response.text}"
+        
+        print(f"❌ Alert creation failed: {error_msg}")
+        return {"error": error_msg}
     except Exception as e:
+        print(f"❌ Alert creation exception: {type(e).__name__}: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return {"error": f"Could not create alert: {str(e)}"}
