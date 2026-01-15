@@ -46,7 +46,7 @@ def get_insurance_quote(
             current_year = datetime.now().year
             year = current_year + 1 if current_month >= 8 else current_year
         
-        print(f"📊 Generating {quote_type} insurance quote for {year}")
+        print(f"[QUOTE] Generating {quote_type} insurance quote for {year}")
         
         # Route to appropriate endpoint based on quote type
         if quote_type == "field":
@@ -68,17 +68,51 @@ def get_insurance_quote(
             )
         
         elif quote_type == "region":
-            # Region quotes require shapefile geometry, not just a name
-            # This needs additional implementation to look up region shapes
-            return {
-                "error": "Region-based quotes require shapefile integration. Please use field ID or coordinates for now, or contact support for region quoting."
-            }
+            if region_name is None:
+                return {"error": "region_name is required for region-based quotes"}
+            
+            # Look up district coordinates
+            from tools.districts import get_district_info
+            
+            district_info = get_district_info(region_name)
+            
+            if not district_info:
+                # Provide helpful error with available districts
+                from tools.districts import list_all_districts
+                available = list_all_districts()
+                return {
+                    "error": f"District '{region_name}' not found. Available districts: {', '.join(available[:10])}... (and {len(available) - 10} more)"
+                }
+            
+            print(f"[REGION] Found district: {district_info['name']} in {district_info['province']}")
+            print(f"[REGION] Using coordinates: {district_info['latitude']}, {district_info['longitude']}")
+            print(f"[REGION] Agroecological zone: {district_info['zone']}")
+            
+            # Use coordinate-based quote with district centroid
+            result = _get_coordinate_quote(
+                district_info['latitude'], 
+                district_info['longitude'],
+                expected_yield, 
+                price_per_ton,
+                year, 
+                crop, 
+                deductible_rate, 
+                area_ha
+            )
+            
+            # Update result to show district name instead of coordinates
+            if "status" in result and result["status"] == "success":
+                result["quote_type"] = "region"
+                result["location"] = f"{district_info['name']} District, {district_info['province']}"
+                result["district_info"] = district_info
+            
+            return result
         
         else:
             return {"error": f"Invalid quote_type: {quote_type}. Use 'field', 'coordinates', or 'region'"}
     
     except Exception as e:
-        print(f"❌ Insurance quote error: {str(e)}")
+        print(f"[ERROR] Insurance quote error: {str(e)}")
         return {"error": f"Failed to generate quote: {str(e)}"}
 
 
@@ -95,10 +129,10 @@ def _get_field_quote(field_id, expected_yield, price_per_ton, year, deductible_r
         if area_ha:
             payload["area_ha"] = area_ha
         
-        print(f"🌾 Requesting quote for field_id={field_id}")
+        print(f"[FIELD] Requesting quote for field_id={field_id}")
         
         response = requests.post(
-            f"{INDEX_API_URL}/quotes/field/{field_id}",
+            f"{INDEX_API_URL}/api/quotes/field/{field_id}",
             json=payload,
             timeout=30
         )
@@ -148,11 +182,11 @@ def _get_coordinate_quote(lat, lon, expected_yield, price_per_ton, year, crop, d
         if area_ha:
             payload["area_ha"] = area_ha
         
-        print(f"📍 Requesting quote for coordinates ({lat}, {lon})")
+        print(f"[GPS] Requesting quote for coordinates ({lat}, {lon})")
         
         # Use prospective endpoint for future years
         response = requests.post(
-            f"{INDEX_API_URL}/quotes/prospective",
+            f"{INDEX_API_URL}/api/quotes/prospective",
             json=payload,
             timeout=30
         )
@@ -200,11 +234,11 @@ def _get_region_quote(region_name, expected_yield, price_per_ton, year, crop, de
         if area_ha:
             payload["area_ha"] = area_ha
         
-        print(f"🗺️ Requesting quote for region: {region_name}")
+        print(f"[REGION] Requesting quote for region: {region_name}")
         
         # Use PROSPECTIVE endpoint (historical is for past years only)
         response = requests.post(
-            f"{INDEX_API_URL}/quotes/prospective",
+            f"{INDEX_API_URL}/api/quotes/prospective",
             json=payload,
             timeout=30
         )
