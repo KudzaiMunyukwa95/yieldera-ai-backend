@@ -5,31 +5,47 @@ from core.config import get_settings
 
 settings = get_settings()
 
-# Initialize Redis Connection
-# In production, use connection pool
-try:
-    r = redis.from_url(settings.REDIS_URL, decode_responses=True)
-except Exception as e:
-    print(f"Warning: Redis connection failed. Rate limiting may be disabled. {e}")
-    r = None
+# In-Memory Backup
+_memory_limit_store = {}
+
+def get_redis():
+    try:
+        if settings.REDIS_URL:
+            r = redis.from_url(settings.REDIS_URL, decode_responses=True)
+            r.ping()
+            return r
+    except Exception:
+        pass
+    return None
 
 async def check_rate_limit(user_id: str):
     """
     Enforces a daily rate limit per user.
-    New Requirement: 5 messages per day.
+    Fallback: Uses In-Memory dict if Redis is missing.
     """
-    if not r:
-        return True # Fail open if Redis is down (or handle strictly)
-
+    r = get_redis()
     today = datetime.now().strftime("%Y-%m-%d")
     key = f"rate_limit:{user_id}:{today}"
-    
-    # Atomic Increment
-    current_count = r.incr(key)
-    
-    # Set expiry to 24 hours if it's a new key
-    if current_count == 1:
-        r.expire(key, 86400)
+    current_count = 0
+
+    if r:
+        # REDIS PATH
+        current_count = r.incr(key)
+        if current_count == 1:
+            r.expire(key, 86400)
+    else:
+        # MEMORY PATH
+        # Clean old keys from other days (simple GC)
+        global _memory_limit_store
+        if user_id not in _memory_limit_store:
+            _memory_limit_store[user_id] = {}
+        
+        # Reset if new day
+        if _memory_limit_store[user_id].get("date") != today:
+            _memory_limit_store[user_id] = {"date": today, "count": 0}
+            
+        _memory_limit_store[user_id]["count"] += 1
+        current_count = _memory_limit_store[user_id]["count"]
     
     if current_count > settings.RATE_LIMIT_PER_DAY:
         raise HTTPException(
@@ -39,5 +55,6 @@ async def check_rate_limit(user_id: str):
     
     return {
         "limit": settings.RATE_LIMIT_PER_DAY,
-        "remaining": max(0, settings.RATE_LIMIT_PER_DAY - current_count)
+        "remaining": max(0, settings.RATE_LIMIT_PER_DAY - current_count),
+        "store": "redis" if r else "memory"
     }
