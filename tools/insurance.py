@@ -18,7 +18,12 @@ def get_insurance_quote(
     area_ha: Optional[float] = None
 ) -> Dict[str, Any]:
     """
-    Generates crop insurance quotes using 3 different methods.
+    Generate actuarial insurance quotes for agricultural coverage.
+    
+    IMPORTANT: When presenting the quote to the user, YOU MUST prominently display the PDF download link
+    from the 'pdf_download_url' field at the top of your response. Format it as a clickable link like:
+    
+    📄 **Download Full PDF Report**: [Click here to download](https://yieldera.net/dashboard/pricing.html?quote_id=XXX)
     
     Args:
         user_context: User authentication context
