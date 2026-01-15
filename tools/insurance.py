@@ -1,0 +1,242 @@
+import requests
+from typing import Dict, Any, Optional
+
+INDEX_API_URL = "https://yieldera-index.onrender.com"
+
+def get_insurance_quote(
+    user_context: dict,
+    quote_type: str,
+    field_id: Optional[int] = None,
+    latitude: Optional[float] = None,
+    longitude: Optional[float] = None,
+    region_name: Optional[str] = None,
+    expected_yield: float = 5.0,
+    price_per_ton: float = 300.0,
+    year: Optional[int] = None,
+    crop: str = "maize",
+    deductible_rate: float = 0.05,
+    area_ha: Optional[float] = None
+) -> Dict[str, Any]:
+    """
+    Generates crop insurance quotes using 3 different methods.
+    
+    Args:
+        user_context: User authentication context
+        quote_type: One of "field", "coordinates", or "region"
+        field_id: Field ID (required if quote_type="field")
+        latitude: Latitude (required if quote_type="coordinates")
+        longitude: Longitude (required if quote_type="coordinates")
+        region_name: Region name like "Mazowe" (required if quote_type="region")
+        expected_yield: Expected yield in tons/ha (default: 5.0)
+        price_per_ton: Price per ton in $ (default: 300)
+        year: Quote year (defaults to next season)
+        crop: Crop type (default: "maize")
+        deductible_rate: Deductible percentage (default: 0.05 = 5%)
+        area_ha: Area in hectares (optional)
+    
+    Returns:
+        Quote result with premium, sum insured, and AI summary
+    """
+    try:
+        from datetime import datetime
+        
+        # Default to next season if no year provided
+        if year is None:
+            current_month = datetime.now().month
+            current_year = datetime.now().year
+            year = current_year + 1 if current_month >= 8 else current_year
+        
+        print(f"📊 Generating {quote_type} insurance quote for {year}")
+        
+        # Route to appropriate endpoint based on quote type
+        if quote_type == "field":
+            if field_id is None:
+                return {"error": "field_id is required for field-based quotes"}
+            
+            return _get_field_quote(
+                field_id, expected_yield, price_per_ton, year, 
+                deductible_rate, area_ha
+            )
+        
+        elif quote_type == "coordinates":
+            if latitude is None or longitude is None:
+                return {"error": "latitude and longitude are required for coordinate-based quotes"}
+            
+            return _get_coordinate_quote(
+                latitude, longitude, expected_yield, price_per_ton, 
+                year, crop, deductible_rate, area_ha
+            )
+        
+        elif quote_type == "region":
+            if region_name is None:
+                return {"error": "region_name is required for region-based quotes"}
+            
+            return _get_region_quote(
+                region_name, expected_yield, price_per_ton, 
+                year, crop, deductible_rate, area_ha
+            )
+        
+        else:
+            return {"error": f"Invalid quote_type: {quote_type}. Use 'field', 'coordinates', or 'region'"}
+    
+    except Exception as e:
+        print(f"❌ Insurance quote error: {str(e)}")
+        return {"error": f"Failed to generate quote: {str(e)}"}
+
+
+def _get_field_quote(field_id, expected_yield, price_per_ton, year, deductible_rate, area_ha):
+    """Generate quote for a specific field"""
+    try:
+        payload = {
+            "expected_yield": expected_yield,
+            "price_per_ton": price_per_ton,
+            "year": year,
+            "deductible_rate": deductible_rate
+        }
+        
+        if area_ha:
+            payload["area_ha"] = area_ha
+        
+        print(f"🌾 Requesting quote for field_id={field_id}")
+        
+        response = requests.post(
+            f"{INDEX_API_URL}/quotes/field/{field_id}",
+            json=payload,
+            timeout=30
+        )
+        response.raise_for_status()
+        
+        data = response.json()
+        
+        if data.get("status") == "success":
+            quote = data.get("quote", {})
+            field_data = data.get("field_data", {})
+            
+            return {
+                "status": "success",
+                "quote_type": "field",
+                "field_name": field_data.get("name", f"Field {field_id}"),
+                "sum_insured": f"${quote.get('sum_insured', 0):,.2f}",
+                "gross_premium": f"${quote.get('gross_premium', 0):,.2f}",
+                "premium_rate": f"{quote.get('premium_rate', 0) * 100:.2f}%",
+                "deductible": f"{deductible_rate * 100}%",
+                "ai_summary": quote.get("ai_summary", "Summary not available"),
+                "quote_id": quote.get("quote_id"),
+                "execution_time": data.get("execution_time_seconds"),
+                "raw_quote": quote  # Full quote data for advanced display
+            }
+        else:
+            return {"error": data.get("message", "Quote generation failed")}
+    
+    except requests.exceptions.HTTPError as e:
+        return {"error": f"API error: {e.response.status_code} - {e.response.text}"}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def _get_coordinate_quote(lat, lon, expected_yield, price_per_ton, year, crop, deductible_rate, area_ha):
+    """Generate quote for GPS coordinates"""
+    try:
+        payload = {
+            "latitude": lat,
+            "longitude": lon,
+            "expected_yield": expected_yield,
+            "price_per_ton": price_per_ton,
+            "year": year,
+            "crop": crop,
+            "deductible_rate": deductible_rate
+        }
+        
+        if area_ha:
+            payload["area_ha"] = area_ha
+        
+        print(f"📍 Requesting quote for coordinates ({lat}, {lon})")
+        
+        # Use prospective endpoint for future years
+        response = requests.post(
+            f"{INDEX_API_URL}/quotes/prospective",
+            json=payload,
+            timeout=30
+        )
+        response.raise_for_status()
+        
+        data = response.json()
+        
+        if data.get("status") == "success":
+            quote = data.get("quote", {})
+            
+            return {
+                "status": "success",
+                "quote_type": "coordinates",
+                "location": f"Lat: {lat}, Lon: {lon}",
+                "sum_insured": f"${quote.get('sum_insured', 0):,.2f}",
+                "gross_premium": f"${quote.get('gross_premium', 0):,.2f}",
+                "premium_rate": f"{quote.get('premium_rate', 0) * 100:.2f}%",
+                "deductible": f"{deductible_rate * 100}%",
+                "ai_summary": quote.get("ai_summary", "Summary not available"),
+                "quote_id": quote.get("quote_id"),
+                "execution_time": data.get("execution_time_seconds"),
+                "raw_quote": quote
+            }
+        else:
+            return {"error": data.get("message", "Quote generation failed")}
+    
+    except requests.exceptions.HTTPError as e:
+        return {"error": f"API error: {e.response.status_code}"}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def _get_region_quote(region_name, expected_yield, price_per_ton, year, crop, deductible_rate, area_ha):
+    """Generate quote for a named region (uses shapefile)"""
+    try:
+        # For region quotes, we need to get the shapefile geometry
+        # This might require a separate lookup or be handled by the index backend
+        
+        payload = {
+            "region": region_name,
+            "expected_yield": expected_yield,
+            "price_per_ton": price_per_ton,
+            "year": year,
+            "crop": crop,
+            "deductible_rate": deductible_rate
+        }
+        
+        if area_ha:
+            payload["area_ha"] = area_ha
+        
+        print(f"🗺️ Requesting quote for region: {region_name}")
+        
+        # Use historical endpoint with region parameter
+        response = requests.post(
+            f"{INDEX_API_URL}/quotes/historical",
+            json=payload,
+            timeout=30
+        )
+        response.raise_for_status()
+        
+        data = response.json()
+        
+        if data.get("status") == "success":
+            quote = data.get("quote", {})
+            
+            return {
+                "status": "success",
+                "quote_type": "region",
+                "location": region_name,
+                "sum_insured": f"${quote.get('sum_insured', 0):,.2f}",
+                "gross_premium": f"${quote.get('gross_premium', 0):,.2f}",
+                "premium_rate": f"{quote.get('premium_rate', 0) * 100:.2f}%",
+                "deductible": f"{deductible_rate * 100}%",
+                "ai_summary": quote.get("ai_summary", "Summary not available"),
+                "quote_id": quote.get("quote_id"),
+                "execution_time": data.get("execution_time_seconds"),
+                "raw_quote": quote
+            }
+        else:
+            return {"error": data.get("message", "Quote generation failed")}
+    
+    except requests.exceptions.HTTPError as e:
+        return {"error": f"API error: {e.response.status_code}"}
+    except Exception as e:
+        return {"error": str(e)}
