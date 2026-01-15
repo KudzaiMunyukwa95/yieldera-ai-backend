@@ -48,6 +48,20 @@ def get_insurance_quote(
         
         print(f"[QUOTE] Generating {quote_type} insurance quote for {year}")
         
+        # PROGRESS MESSAGE: Inform user about processing time
+        print("\n" + "="*60)
+        print("ACTUARIAL QUOTE PROCESSING")
+        print("="*60)
+        print(f"Location Type: {quote_type.title()}")
+        print(f"Coverage Year: {year}")
+        print(f"\nEstimated Processing Time: 60-90 seconds")
+        print("\nWhat's Happening:")
+        print("  [1/3] Detecting optimal planting windows...")
+        print("  [2/3] Analyzing 20+ years of rainfall data...")
+        print("  [3/3] Calculating risk-adjusted premium rates...")
+        print("\nPlease wait while we analyze satellite data from Google Earth Engine")
+        print("="*60 + "\n")
+        
         # Route to appropriate endpoint based on quote type
         if quote_type == "field":
             if field_id is None:
@@ -134,7 +148,7 @@ def _get_field_quote(field_id, expected_yield, price_per_ton, year, deductible_r
         response = requests.post(
             f"{INDEX_API_URL}/api/quotes/field/{field_id}",
             json=payload,
-            timeout=30
+            timeout=120  # Increased from 30 to 120 seconds for Earth Engine processing
         )
         response.raise_for_status()
         
@@ -188,7 +202,7 @@ def _get_coordinate_quote(lat, lon, expected_yield, price_per_ton, year, crop, d
         response = requests.post(
             f"{INDEX_API_URL}/api/quotes/prospective",
             json=payload,
-            timeout=30
+            timeout=120  # Increased from 30 to 120 seconds for Earth Engine processing
         )
         response.raise_for_status()
         
@@ -240,7 +254,7 @@ def _get_region_quote(region_name, expected_yield, price_per_ton, year, crop, de
         response = requests.post(
             f"{INDEX_API_URL}/api/quotes/prospective",
             json=payload,
-            timeout=30
+            timeout=120  # Increased from 30 to 120 seconds for Earth Engine processing
         )
         response.raise_for_status()
         
