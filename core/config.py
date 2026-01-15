@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     
     # Security
     INTERNAL_API_KEY: str  # Shared secret for the PHP Bridge
+    ADMIN_TOKEN: str  # Token for yieldera-alerts-main API
     PHP_BRIDGE_URL: str = "http://localhost/dashboard/api/internal/ai_bridge.php"
     ALLOWED_ORIGINS: list[str] = [
         "https://yieldera.net", 
