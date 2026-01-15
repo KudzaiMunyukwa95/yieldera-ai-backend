@@ -32,10 +32,16 @@ def health_check():
     # TODO: Check Redis & OpenAI Connection
     return {"status": "ok"}
 
-# ... imports ...
+# ... imports ..
+
+.
 from schemas.request import ChatRequest
 from core.planning import create_plan
 from core.agent import process_user_query
+from api.admin import router as admin_router
+
+# Include admin routes
+app.include_router(admin_router)
 
 # ... setup ...
 
@@ -48,9 +54,10 @@ async def chat_endpoint(request_data: ChatRequest):
     3. Execute
     """
     user_id = request_data.context.user_id
+    user_role = request_data.context.role
     
-    # 1. Check Rate Limit
-    limit_info = await check_rate_limit(user_id)
+    # 1. Check Rate Limit (Admins are exempt)
+    limit_info = await check_rate_limit(user_id, user_role)
     
     # 2. Plan (Reasoning)
     context_dict = request_data.context.model_dump()
