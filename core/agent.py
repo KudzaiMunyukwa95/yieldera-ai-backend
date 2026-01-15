@@ -132,6 +132,12 @@ async def process_user_query(message: str, context: dict, plan: object, history:
        - `get_historical_weather`: HISTORICAL data (past temps via dual consensus: OpenMeteo + NASA POWER)
     4. **VEGETATION LIMITATIONS:** You can only check NDVI for specific past dates if the user provides a date. You cannot make up NDVI values.
     
+    ### CONTEXT AWARENESS (CRITICAL)
+    1. **TRACK CONVERSATION:** Pay close attention to the previous question's intent.
+    2. **FOLLOW-UP QUESTIONS:** If user asks "what about field X?" after a data query, they want THE SAME DATA for field X.
+       - Example: If they asked "lowest temp for field A in July" then ask "what about field B?" → Answer: lowest temp for field B in July (same query, different field)
+    3. **DON'T JUST DESCRIBE:** If they already got data for one field and ask about another, DON'T just describe the field - provide the SAME type of data.
+    
     ### DATA INSTRUCTIONS
     1. **USE THE DB:** The `get_fields` tool returns `risk_score`, `risk_reason`, and `growth_stage`. USE THEM.
     2. **DO NOT GUESS:** If asking about a specific field (e.g. "Field Alpha"), you MUST first call `get_fields` to find its ID, then use that ID for other tools (like `get_vegetation_health`).
