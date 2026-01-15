@@ -146,6 +146,10 @@ async def process_user_query(message: str, context: dict, plan: object, history:
     2. **DO NOT GUESS:** If asking about a specific field (e.g. "Field Alpha"), you MUST first call `get_fields` to find its ID, then use that ID for other tools (like `get_vegetation_health`).
     3. **VEGETATION CHECKS:** To check vegetation/NDVI, you need a Field ID and a Date. Find the ID first.
     4. **ALERTS:** Use `get_alerts` for alert queries, NOT portfolio data.
+    5. **HISTORICAL WEATHER FOR FIELDS:** When user asks about historical weather for a field:
+       - Step 1: Call `get_fields` to get the field list
+       - Step 2: Find the field and extract its `latitude` and `longitude` from the field data
+       - Step 3: Call `get_historical_weather` with those lat/lon coordinates (DO NOT use field_id, it will fail)
     
     ### STYLE GUIDELINES
     1. **Human & Professional:** Speak like a colleague. Be direct.
