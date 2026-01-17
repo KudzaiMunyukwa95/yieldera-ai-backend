@@ -12,6 +12,9 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str
     OPENAI_MODEL: str = "gpt-4-turbo-preview"
     
+    # External APIs
+    GEE_API_TOKEN: str  # Google Earth Engine API token for NDVI backend
+    
     # Security
     INTERNAL_API_KEY: str  # Shared secret for the PHP Bridge
     ADMIN_TOKEN: str  # Token for yieldera-alerts-main API
