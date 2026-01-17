@@ -77,20 +77,8 @@ def get_vegetation_health(user_context: dict, field_id: int, date: str) -> dict:
     }
     
     try:
-        # We need a secret key? The NDVI backend uses @require_auth.
-        # I check gee_ndvi_generator.py for @require_auth implementation?
-        # It usually checks Authorization header or X-Secret.
-        # The user's other code uses `api_key` in internal call?
-        # Wait, the config.js didn't show a key.
-        # But gee_ndvi_generator.py *does* have @require_auth.
-        # I need to find what token it expects.
-        # Likely `INTERNAL_API_KEY` or `OPENAI_API_KEY`? 
-        # Actually existing frontend calls it directly? 
-        # No, frontend calls it via proxy?
-        # Config.js has `GEE_API_TOKEN`. I saw it! 
-        # It was: 'e5ab51a6982394b7ed747afdac005a1c851d128fb060898b7b7134789b25f518'
-        
-        gee_token = "e5ab51a6982394b7ed747afdac005a1c851d128fb060898b7b7134789b25f518" # Hardcoded for now from config.js
+        # Use GEE token from environment variables (secure)
+        gee_token = settings.GEE_API_TOKEN
         
         headers = {
             "Content-Type": "application/json",
